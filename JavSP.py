@@ -395,7 +395,7 @@ def restore_original_filenames(movie, original_filenames):
             # 在 save_dir 中查找和 original_filename 前几个字母相同的文件
             found = False
             for filename in os.listdir(save_dir):
-                if filename.startswith(original_filename[:3]):
+                if filename.startswith(original_filename[:4]):
                     current_filepath = os.path.join(save_dir, filename)
                     found = True
                     break
@@ -684,9 +684,10 @@ if __name__ == "__main__":
     py_version_ok = version.parse(platform.python_version()) >= version.parse('3.8')
     error_exit(py_version_ok, '请使用3.8及以上版本的Python')
     # 检查更新
-    version_info = 'JavSP ' + getattr(sys, 'javsp_version', '未知版本/从代码运行')
-    logger.debug(version_info.center(60, '='))
-    check_update(cfg.Other.check_update, cfg.Other.auto_update)
+    # version_info = 'JavSP ' + getattr(sys, 'javsp_version', '未知版本/从代码运行')
+    # logger.debug(version_info.center(60, '='))
+    # check_update(cfg.Other.check_update, cfg.Other.auto_update)
+    # 选择要扫描的文件夹
     root = get_scan_dir(cfg.File.scan_dir)
     error_exit(root, '未选择要扫描的文件夹')
     # 导入抓取器，必须在chdir之前
