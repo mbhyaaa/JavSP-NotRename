@@ -263,7 +263,7 @@ def info_summary(movie: Movie, all_info: Dict[str, MovieInfo]):
     return True
 
 
-def generate_names(movie: Movie):
+def generate_names(movie: Movie, original_filenames):
     """按照模板生成相关文件的文件名"""
     info = movie.info
     # 准备用来填充命名模板的字典
@@ -297,7 +297,7 @@ def generate_names(movie: Movie):
     # 生成nfo文件中的影片标题
     nfo_title = cfg.NamingRule.nfo_title.substitute(**d)
     setattr(info, 'nfo_title', nfo_title)
-    
+
     # 使用字典填充模板，生成相关文件的路径（多分片影片要考虑CD-x部分）
     cdx = '' if len(movie.files) <= 1 else '-CD1'
     if hasattr(info, 'title_break'):
@@ -344,6 +344,8 @@ def generate_names(movie: Movie):
                     logger.info(f"自动截短标题为:\n{copyd['title']}")
                 if d['rawtitle'] != copyd['rawtitle']:
                     logger.info(f"自动截短原始标题为:\n{copyd['rawtitle']}")
+                # 仅记录当前文件的原始文件名
+                original_filenames[os.path.basename(movie.files[0])] = os.path.basename(long_path)
                 return
     else:
         # 以防万一，当整理路径非常深或者标题起始很长一段没有标点符号时，硬性截短生成的名称
@@ -377,6 +379,39 @@ def generate_names(movie: Movie):
             logger.info(f"自动截短标题为:\n{copyd['title']}")
         if d['rawtitle'] != copyd['rawtitle']:
             logger.info(f"自动截短原始标题为:\n{copyd['rawtitle']}")
+        # 仅记录当前文件的原始文件名
+        original_filenames[os.path.basename(movie.files[0])] = os.path.basename(long_path)
+
+import os
+
+def restore_original_filenames(movie, original_filenames):
+    """恢复文件的原始名称"""
+    try:
+        save_dir = movie.save_dir
+        for original_filename, current_filepath in original_filenames.items():
+            # 构建新的文件路径，使用 movie.nfo_file 的信息
+            new_filepath = os.path.join(os.path.dirname(movie.nfo_file), original_filename)
+            
+            # 在 save_dir 中查找和 original_filename 前几个字母相同的文件
+            found = False
+            for filename in os.listdir(save_dir):
+                if filename.startswith(original_filename[:3]):
+                    current_filepath = os.path.join(save_dir, filename)
+                    found = True
+                    break
+            
+            if found:
+                # 检查原始文件是否存在，如果存在则恢复
+                if os.path.exists(current_filepath):
+                    os.rename(current_filepath, new_filepath)
+                    logger.info(f"成功恢复文件名: {original_filename}")
+                else:
+                    logger.warning(f"无法找到原始文件: {current_filepath}")
+            else:
+                logger.warning(f"在 {save_dir} 中找不到和 {original_filename} 相关的文件")
+    except Exception as e:
+        logger.error(f"恢复文件名失败: {e}")
+
 
 
 def postStep_videostation(movie: Movie):
@@ -494,7 +529,9 @@ def RunNormalMode(all_movies):
                 success = translate_movie_info(movie.info)
                 check_step(success)
 
-            generate_names(movie)
+            original_filenames = {}  # 创建空字典，用于保存单个文件的原始文件名
+            generate_names(movie, original_filenames)
+            
             check_step(movie.save_dir, '无法按命名规则生成目标文件夹')
             if not os.path.exists(movie.save_dir):
                 os.makedirs(movie.save_dir)
@@ -544,6 +581,9 @@ def RunNormalMode(all_movies):
             else:
                 logger.info(f'刮削完成，相关文件已保存到: {movie.nfo_file}\n')
 
+            # 在整理完成后恢复文件名
+            restore_original_filenames(movie, original_filenames)
+            
             if movie != all_movies[-1] and cfg.Crawler.sleep_after_scraping > 0:
                 time.sleep(cfg.Crawler.sleep_after_scraping)
             return_movies.append(movie)
