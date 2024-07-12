@@ -1,6 +1,7 @@
 # Jav Scraper Package -NotRename
 
-修改自[Jav Scraper Package](https://github.com/Yuukiy/JavSP)
+修改自[Jav Scraper Package](https://github.com/Yuukiy/JavSP)。
+
 仅修改了JavSP.py程序。
 在整理文件之前保存原始文件名，整理完成后再恢复文件名。
 
