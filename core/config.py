@@ -269,6 +269,7 @@ def norm_boolean(cfg: Config):
             ('Other', 'check_update'),
             ('Other', 'auto_update'),
             ('File', 'enable_file_move'),
+            ('File', 'enable_rename'), 
         ]:
         cfg._sections[sec][key] = cfg.getboolean(sec, key)
     # 特殊转换
