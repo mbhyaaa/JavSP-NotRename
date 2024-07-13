@@ -2,8 +2,8 @@
 
 修改自[Jav Scraper Package](https://github.com/Yuukiy/JavSP)。
 
-仅修改了JavSP.py程序。
-在整理文件之前保存原始文件名，整理完成后再恢复文件名。
+修改了JavSP.py、config.py程序。
+在config.ini中添加判断，当File->enable_rename = no时，整理文件之前保存原始文件名，整理完成后再恢复原始文件名。
 
 
 ## 安装
