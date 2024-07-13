@@ -582,7 +582,8 @@ def RunNormalMode(all_movies):
                 logger.info(f'刮削完成，相关文件已保存到: {movie.nfo_file}\n')
 
             # 在整理完成后恢复文件名
-            restore_original_filenames(movie, original_filenames)
+            if cfg.File.enable_rename is False:
+                restore_original_filenames(movie, original_filenames)
             
             if movie != all_movies[-1] and cfg.Crawler.sleep_after_scraping > 0:
                 time.sleep(cfg.Crawler.sleep_after_scraping)
