@@ -8,6 +8,8 @@ import requests
 import threading
 from shutil import copyfile
 from typing import Dict, List
+from datetime import datetime
+
 
 sys.stdout.reconfigure(encoding='utf-8')
 
@@ -263,7 +265,53 @@ def info_summary(movie: Movie, all_info: Dict[str, MovieInfo]):
     return True
 
 
-def generate_names(movie: Movie, original_filenames):
+def record_file_metadata(file_path, new_file_path, file_metadata):
+    """记录文件的原始文件名、大小和最后修改时间"""
+    file_size = os.path.getsize(file_path)
+    file_mtime = datetime.fromtimestamp(os.path.getmtime(file_path)).strftime('%Y-%m-%d %H:%M:%S')
+    file_metadata[os.path.basename(file_path)] = {
+        'original_name': os.path.basename(file_path),
+        'new_path': new_file_path,
+        'size': file_size,
+        'mtime': file_mtime
+    }
+    
+    
+def restore_original_filenames(movie, file_metadata):
+    """恢复文件的原始名称"""
+    try:
+        save_dir = movie.save_dir
+        for original_filename, metadata in file_metadata.items():
+            found = False
+            new_filepath = os.path.join(os.path.dirname(movie.nfo_file), original_filename)
+            
+            # 在 save_dir 中查找文件
+            for filename in os.listdir(save_dir):
+                current_filepath = os.path.join(save_dir, filename)
+                
+                if not os.path.exists(current_filepath):
+                    continue
+                
+                file_size = os.path.getsize(current_filepath)
+                file_mtime = datetime.fromtimestamp(os.path.getmtime(current_filepath)).strftime('%Y-%m-%d %H:%M:%S')
+                
+                if file_size == metadata['size'] and file_mtime == metadata['mtime']:
+                    found = True
+                    break
+            
+            if found:
+                try:
+                    os.rename(current_filepath, new_filepath)
+                    logger.info(f"成功恢复文件名: {original_filename}\n")
+                except OSError as e:
+                    logger.error(f"重命名文件 {current_filepath} 失败: {e}\n")
+            else:
+                logger.warning(f"在 {save_dir} 中找不到匹配的文件: {original_filename}\n")
+    except Exception as e:
+        logger.error(f"恢复文件名失败: {e}\n")
+        
+
+def generate_names(movie: Movie, file_metadata):
     """按照模板生成相关文件的文件名"""
     info = movie.info
     # 准备用来填充命名模板的字典
@@ -323,7 +371,7 @@ def generate_names(movie: Movie, original_filenames):
                 basename = filebasename.replace(ext, '')
             else:
                 save_dir = os.path.normpath(cfg.NamingRule.save_dir.substitute(copyd)).strip()
-                basename = os.path.normpath(cfg.NamingRule.filename.substitute(copyd).strip())
+                basename = os.path.normpath(cfg.NamingRule.filename.substitute(copyd)).strip()
             if 'universal' in cfg.NamingRule.media_servers:
                 long_path = os.path.join(save_dir, basename+longest_ext)
             else:
@@ -344,8 +392,8 @@ def generate_names(movie: Movie, original_filenames):
                     logger.info(f"自动截短标题为:\n{copyd['title']}")
                 if d['rawtitle'] != copyd['rawtitle']:
                     logger.info(f"自动截短原始标题为:\n{copyd['rawtitle']}")
-                # 仅记录当前文件的原始文件名
-                original_filenames[os.path.basename(movie.files[0])] = os.path.basename(long_path)
+                # 记录文件元数据
+                record_file_metadata(movie.files[0], long_path, file_metadata)
                 return
     else:
         # 以防万一，当整理路径非常深或者标题起始很长一段没有标点符号时，硬性截短生成的名称
@@ -379,39 +427,8 @@ def generate_names(movie: Movie, original_filenames):
             logger.info(f"自动截短标题为:\n{copyd['title']}")
         if d['rawtitle'] != copyd['rawtitle']:
             logger.info(f"自动截短原始标题为:\n{copyd['rawtitle']}")
-        # 仅记录当前文件的原始文件名
-        original_filenames[os.path.basename(movie.files[0])] = os.path.basename(long_path)
-
-import os
-
-def restore_original_filenames(movie, original_filenames):
-    """恢复文件的原始名称"""
-    try:
-        save_dir = movie.save_dir
-        for original_filename, current_filepath in original_filenames.items():
-            # 构建新的文件路径，使用 movie.nfo_file 的信息
-            new_filepath = os.path.join(os.path.dirname(movie.nfo_file), original_filename)
-            
-            # 在 save_dir 中查找和 original_filename 前几个字母相同的文件
-            found = False
-            for filename in os.listdir(save_dir):
-                if filename.startswith(original_filename[:4]):
-                    current_filepath = os.path.join(save_dir, filename)
-                    found = True
-                    break
-            
-            if found:
-                # 检查原始文件是否存在，如果存在则恢复
-                if os.path.exists(current_filepath):
-                    os.rename(current_filepath, new_filepath)
-                    logger.info(f"成功恢复文件名: {original_filename}")
-                else:
-                    logger.warning(f"无法找到原始文件: {current_filepath}")
-            else:
-                logger.warning(f"在 {save_dir} 中找不到和 {original_filename} 相关的文件")
-    except Exception as e:
-        logger.error(f"恢复文件名失败: {e}")
-
+        # 记录文件元数据
+        record_file_metadata(movie.files[0], long_path, file_metadata)
 
 
 def postStep_videostation(movie: Movie):
@@ -529,8 +546,8 @@ def RunNormalMode(all_movies):
                 success = translate_movie_info(movie.info)
                 check_step(success)
 
-            original_filenames = {}  # 创建空字典，用于保存单个文件的原始文件名
-            generate_names(movie, original_filenames)
+            file_metadata = {}  # 创建空字典，用于保存单个文件的原始文件元数据
+            generate_names(movie, file_metadata)
             
             check_step(movie.save_dir, '无法按命名规则生成目标文件夹')
             if not os.path.exists(movie.save_dir):
@@ -583,7 +600,7 @@ def RunNormalMode(all_movies):
 
             # 在整理完成后恢复文件名
             if cfg.File.enable_rename is False:
-                restore_original_filenames(movie, original_filenames)
+                restore_original_filenames(movie, file_metadata)
             
             if movie != all_movies[-1] and cfg.Crawler.sleep_after_scraping > 0:
                 time.sleep(cfg.Crawler.sleep_after_scraping)
