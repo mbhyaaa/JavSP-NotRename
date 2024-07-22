@@ -13,7 +13,7 @@
 	请确保已安装 Python （此项目以 Python 3.8 开发）
  	下载压缩包，进入文件目录
 	```
-	cd JavSP-NotRename
+	cd JavSP
 	pip install -r requirements.txt
 	python JavSP.py
 	```
