@@ -11,9 +11,9 @@
 
 ## 安装
 	请确保已安装 Python （此项目以 Python 3.8 开发）
+ 	下载压缩包，进入文件目录
 	```
-	git clone https://github.com/Yuukiy/JavSP.git
-	cd JavSP
+	cd JavSP-NotRename
 	pip install -r requirements.txt
 	python JavSP.py
 	```
